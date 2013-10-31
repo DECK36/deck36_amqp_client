@@ -54,7 +54,7 @@
          init_per_testcase/2,
          end_per_testcase/2]).
 -export([application_startup/1,
-		 consume_base/1, consume_error/1]).
+		 consume_base/1, consume_error/1, consume_suspend_resume/1]).
 -export([handle_deliver/1, handle_error/1]).
 
 -define(APP, deck36_amqp_client).
@@ -71,7 +71,7 @@
 groups() ->
 	[
 	 {application, [], [application_startup]},
-	 {consume, [sequence], [consume_base, consume_error]}
+	 {consume, [sequence], [consume_base, consume_error, consume_suspend_resume]}
 	].
 
 
@@ -138,6 +138,9 @@ application_startup(_Config) ->
 %% ====================================================================
 %% Test group consume
 %% ====================================================================
+
+%% Produce message, which should be handled by handle_deliver
+%% ====================================================================
 consume_base(_Config) ->
 	Expected = erlang:list_to_binary(
 				 lists:flatten(io_lib:fwrite("~p", [erlang:now()]))),
@@ -146,6 +149,9 @@ consume_base(_Config) ->
 	timer:sleep(?WAIT_TIME),
 	consume_process_results(Expected, false).
 
+
+%% Produce message, which should trigger an error handled by handle_error
+%% ====================================================================
 consume_error(_Config) ->
 	Expected = <<"error triggered">>,
 	consume_reset_actual(),
@@ -153,10 +159,61 @@ consume_error(_Config) ->
 	timer:sleep(?WAIT_TIME),
 	consume_process_results(Expected, true).
 
+
+%% 1) Produce message, which should be handle by handle_deliver
+%% 2) Suspend and produce a message, which should not be consumed
+%% 3) Resume, which should consume the message from before
+%% ====================================================================
+consume_suspend_resume(_Config) ->
+	[Consumer] = deck36_amqp_consumer_sup:which_consumers(),
+	Expected = erlang:list_to_binary(
+				 lists:flatten(io_lib:fwrite("~p", [erlang:now()]))),
+	
+	%% Normal consumption once more
+	consume_reset_actual(),
+	deck36_amqp_client:produce(Expected),
+	timer:sleep(?WAIT_TIME),
+	consume_process_results(Expected, false),
+	
+	%% Suspend, produce, wait
+	consume_reset_actual(),
+	ok = deck36_amqp_consumer_container:suspend(Consumer),
+	deck36_amqp_client:produce(Expected),
+	timer:sleep(?WAIT_TIME),
+	
+	%% Assert
+	[{error_triggered, IsTriggered}] = ets:lookup(?ETS, error_triggered),
+	[{actual, Actual}] = ets:lookup(?ETS, actual),
+	case Actual of
+		<<>> -> ok;
+		Expected ->
+			ct:pal(error, "Expected no consumption~n", []),
+			throw(error_consumed);
+		X ->
+			ct:pal(error, "Unexpected: ~p~n", [X]),
+			throw(error_consumed)
+	end,
+	case IsTriggered of
+		true ->
+			ct:pal(error, "Error triggered"),
+			throw(error_triggered);
+		false -> ok
+	end,
+	
+	ok = deck36_amqp_consumer_container:resume(Consumer),
+	timer:sleep(?WAIT_TIME),
+	consume_process_results(Expected, false).
+	
+
+%% Helper: Reset "actual" values
+%% ====================================================================
 consume_reset_actual() ->
 	ets:insert(?ETS, {actual, <<>>}),
 	ets:insert(?ETS, {error_triggered, false}).
 
+
+%% Helper: Assert
+%% ====================================================================
 consume_process_results(Expected, ShouldTrigger) ->
 	[{error_triggered, IsTriggered}] = ets:lookup(?ETS, error_triggered),
 	[{actual, Actual}] = ets:lookup(?ETS, actual),

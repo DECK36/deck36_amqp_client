@@ -62,7 +62,11 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/1, stop/1]).
+-export([start_link/1,
+		 stop/1,
+		 suspend/1,
+		 resume/1,
+		 is_consuming/1]).
 
 %% start_link/1
 %% ====================================================================
@@ -87,6 +91,37 @@ start_link(Opts) ->
 %% ====================================================================
 stop(Ref) ->
 	gen_server:call(Ref, stop).
+
+
+%% suspend/1
+%% ====================================================================
+%% @doc Suspend consumption
+%%
+%% If consumption is already suspended it will still return ok.
+-spec suspend(Ref :: pid()) -> ok.
+%% ====================================================================
+suspend(Ref) ->
+	gen_server:call(Ref, suspend).
+
+
+%% resume/1
+%% ====================================================================
+%% @doc Resume consumption
+%%
+%% If consumption is already running it will still return ok.
+-spec resume(Ref :: pid()) -> ok.
+%% ====================================================================
+resume(Ref) ->
+	gen_server:call(Ref, resume).
+
+
+%% is_consuming/1
+%% ====================================================================
+%% @doc Return whether or not the consumer is consuming (not suspended).
+-spec is_consuming(Ref :: pid()) -> boolean().
+%% ====================================================================
+is_consuming(Ref) ->
+	gen_server:call(Ref, is_consuming).
 
 
 %% ====================================================================
@@ -141,10 +176,28 @@ init([Opts]) ->
 	Timeout :: non_neg_integer() | infinity,
 	Reason :: term().
 %% ====================================================================
+handle_call(suspend, _From, #state{consumer_tag = undefined}=S) ->
+	{reply, ok, S};
+handle_call(suspend, _From, #state{consumer_tag = Tag, conn = Conn}=S) ->
+	#'basic.cancel_ok'{} = amqp_channel:call(deck36_amqp_connection:get_channel(Conn),
+											 #'basic.cancel'{consumer_tag = Tag}),
+	{reply, ok, S#state{consumer_tag = undefined}};
+
+handle_call(resume, _From, #state{consumer_tag = undefined, conn = Conn, queue = Queue}=S) ->
+	Ch = deck36_amqp_connection:get_channel(Conn), 
+	#'queue.declare_ok'{queue=Q} = amqp_channel:call(Ch, Queue),
+	#'basic.consume_ok'{consumer_tag = Tag} = amqp_channel:call(Ch, #'basic.consume'{queue=Q}),
+	{reply, ok, S#state{consumer_tag = Tag}};
+handle_call(resume, _From, S) ->
+	{reply, ok, S};
+
+handle_call(is_consuming, _From, #state{consumer_tag = Tag}=S) ->
+	{reply, (Tag /= undefined), S};
+
 handle_call(stop, _From, S) ->
 	{stop, normal, ok, S};
 handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+    {reply, {error, not_implemented}, State}.
 
 
 %% handle_cast/2

@@ -50,7 +50,8 @@
 							 {virtual_host, <<"/">>},
 							 {username, <<"">>},
 							 {password, <<"">>}]},
-			   {teardown_on_stop, [all]}]).
+			   {queue, [{queue, <<"Q">>}]},
+			   {type, {callback, [{deliver_cb, fun(_) -> ok end}]}}]).
 
 
 %% ====================================================================
@@ -99,7 +100,7 @@ handle_call_test_() ->
 	[
 	 {"stop", ?_assertMatch({stop, normal, ok, #state{}},
 							F(stop, any, #state{}))},
-	 {"any", ?_assertMatch({reply, ok, #state{}},
+	 {"any", ?_assertMatch({reply, {error, not_implemented}, #state{}},
 						   F(any, any, #state{}))}
 	].
 							
@@ -151,12 +152,50 @@ code_change_test_() ->
 init_test_() ->
 	test_mocked(
 	  fun(_) ->
-			  Cb = fun(_) -> ok end,
-			  O = [{type, {callback, [{deliver_cb, Cb}]}},
-				   {connection, []},
-				   {queue, []}],
-			  ?_assertMatch({ok, #state{}}, deck36_amqp_consumer_container:init([O]))
+			  ?_assertMatch({ok, #state{}}, deck36_amqp_consumer_container:init([?OPTS]))
 	  end).
+
+
+%% ====================================================================
+%% Tests for interface functions
+%% ====================================================================
+
+%% Test start_link/1, stop/1
+%% ====================================================================
+start_stop_test() ->
+	mock_amqp_channel(),
+	mock_amqp_connection(),
+	mock_deck36_amqp_connection(),
+	R1 = deck36_amqp_consumer_container:start_link(?OPTS),
+	?assertMatch({ok, Pid} when is_pid(Pid), R1),
+	{ok, Ref} = R1,
+	?assert(erlang:is_process_alive(Ref)),
+	?assertEqual(ok, deck36_amqp_consumer_container:stop(Ref)),
+	?assertNot(erlang:is_process_alive(Ref)),
+	unmock(deck36_amqp_connection),
+	unmock(amqp_connection),
+	unmock(amqp_channel),
+	ok.
+
+
+%% Test suspend/1, resume/1
+%% ====================================================================
+suspend_resume_test() ->
+	mock_amqp_channel(),
+	mock_amqp_connection(),
+	mock_deck36_amqp_connection(),
+	Mod = deck36_amqp_consumer_container,
+	{ok, Ref} = Mod:start_link(?OPTS),
+	?assert(Mod:is_consuming(Ref)),
+	?assertEqual(ok, Mod:suspend(Ref)),
+	?assertNot(Mod:is_consuming(Ref)),
+	?assertEqual(ok, Mod:resume(Ref)),
+	?assert(Mod:is_consuming(Ref)),
+	unmock(deck36_amqp_connection),
+	unmock(amqp_connection),
+	unmock(amqp_channel),
+	ok.
+	
 
 
 %% ====================================================================
@@ -186,7 +225,9 @@ mock_amqp_channel() ->
 						(_, #'queue.delete'{}) ->		#'queue.delete_ok'{};
 						(_, #'exchange.delete'{}) ->	#'exchange.delete_ok'{};
 						(_, #'queue.unbind'{}) ->		#'queue.unbind_ok'{};
-						(_, #'basic.consume'{}) ->		#'basic.consume_ok'{}
+						(_, #'basic.consume'{}) ->		#'basic.consume_ok'{consumer_tag = mock_tag};
+						(_, #'basic.cancel'{consumer_tag = mock_tag}) ->
+							 							#'basic.cancel_ok'{}
 					 end),
 	ok = meck:expect(amqp_channel, close,
 					 fun(invalid) -> ok;
