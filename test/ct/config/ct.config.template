@@ -1,0 +1,63 @@
+[
+	{deck36_amqp_client, [
+		{consumers, [
+			[
+				{connection, [
+					{host, "127.0.0.1"},
+					{port, 5672},
+					{username, <<"deck36_amqp_client_test">>},
+					{password, <<"{{PASSWORD}}">>},
+					{virtual_host, <<"deck36_amqp_client_test">>}
+				]},
+				{queue, [
+					{queue, <<"deck36_amqp_client_test_queue">>}
+				]},
+				{type, {callback, [
+					{deliver_cb, {basic_SUITE, handle_deliver}},
+					{error_cb, {basic_SUITE, handle_error}},
+					{acknowledge, all}
+				]}}
+			]
+		]},
+		{producers, [
+			[
+				{server_ref, singleton},
+				{connection, [
+					{host, "127.0.0.1"},
+					{port, 5672},
+					{username, <<"deck36_amqp_client_test">>},
+					{password, <<"{{PASSWORD}}">>},
+					{virtual_host, <<"deck36_amqp_client_test">>}
+				]},
+				{publish, [
+					{exchange, <<"deck36_amqp_client_test_exchange">>},
+					{delivery_mode, non_persistent}
+				]}
+			]
+		]},
+		{setups, [
+			[
+				{connection, [
+					{host, "127.0.0.1"},
+					{port, 5672},
+					{username, <<"deck36_amqp_client_test">>},
+					{password, <<"{{PASSWORD}}">>},
+					{virtual_host, <<"deck36_amqp_client_test">>}
+				]},
+				{exchange, [
+					{exchange, <<"deck36_amqp_client_test_exchange">>}
+				]},
+				{queue, [
+					{queue, <<"deck36_amqp_client_test_queue">>}
+				]},
+				{binding, [
+					{exchange, <<"deck36_amqp_client_test_exchange">>},
+					{queue, <<"deck36_amqp_client_test_queue">>}
+				]},
+				{teardown_on_stop, [
+					bindings
+				]}
+			]
+		]}
+	]}
+].

@@ -1,0 +1,12 @@
+{application, deck36_amqp_client,
+ [{description, "DECK36 AMQP client"},
+  {vsn, "0.1.0"},
+  {registered, [deck36_amqp_client_sup,
+  				deck36_amqp_consumer_sup,
+  				deck36_amqp_producer_sup,
+  				deck36_amqp_setup_sup,
+  				deck36_amqp_producer]},
+  {application, [kernel, stdlib]},
+  {mod, { deck36_amqp_client_app, []} },
+  {env, []}
+ ]}.

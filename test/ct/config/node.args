@@ -1,0 +1,2 @@
+-sname deck36_amqp_client_ct
+-config test/ct/config/ct.config
