@@ -86,6 +86,7 @@ You need a running rabbitmq-server on 127.0.0.1:5672 for the full tests (make fu
 
 Before first test run, execute the following setup script. A rabbitmq user and vhost will be created. The user will get permissions to the newly created vhost. The password will be random, so you don't accidently expose your rabbitmq server with guest/guest or whatever. 
 > test/ct/bin/setup_test_env.sh
+
 Note: This script will use sudo for rabbitmqctl. If you don't want that, use option "-t manual"
 
 To run the actual tests use:
@@ -93,6 +94,7 @@ To run the actual tests use:
 
 If you want to tear down the test environment execute:
 > test/ct/bin/teardown_test_env.sh
+
 Note: This script will use sudo for rabbitmqctl if setup_test_env.sh was used with type "rabbitmq", which is the default. 
 
 If you want to create the configurations yourself copy ct.config.template to ct.config and interactive.config.template to interactive.config and set {{PASSWORD}} plus all changes you'd like to make.
@@ -110,6 +112,7 @@ Resolved by rebar.
 
 ToDos
 ------
+- connection aliases
 - smarter waiting / parallelization of tests
 - deletion in setup ("delete queue X and declare queue X again")
 - as always: more tests (units, tear down, custom modules in consumer)
