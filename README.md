@@ -113,6 +113,7 @@ Resolved by rebar.
 ToDos
 ------
 - better shutdown procedure (stop consumption, make sure all workers finished, shutdown)
+- make consumer_sup, producer_sup, setup_sup available on non-singleton variant
 - connection aliases
 - smarter waiting / parallelization of tests
 - deletion in setup ("delete queue X and declare queue X again")
