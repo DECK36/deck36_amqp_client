@@ -56,7 +56,7 @@
 %% ====================================================================
 %% Tests for internal functions
 %% ====================================================================
--record(state, {deliver_cb, channel, error_cb, acknowledge_mode, handle_mode=non_blocking}).
+-record(state, {deliver_cb, channel, error_cb, acknowledge_mode,  requeue_on_error = true, handle_mode=non_blocking}).
 
 %% Test is_valid_cb_opt/1
 %% ====================================================================
@@ -187,19 +187,19 @@ shall_ack_test_() ->
 	T = [{all, error, true},
 		 {all, ok, true},
 		 {all, {ok, ack}, true},
-		 {all, {ok, leave}, false},
+		 {all, {ok, requeue}, false},
 		 {ok, error, false},
 		 {ok, ok, true},
 		 {ok, {ok, ack}, true},
-		 {ok, {ok, leave}, false},
+		 {ok, {ok, requeue}, false},
 		 {error, error, true},
 		 {error, ok, false},
 		 {error, {ok, ack}, true},
-		 {error, {ok, leave}, false},
+		 {error, {ok, requeue}, false},
 		 {explicit, error, false},
 		 {explicit, ok, false},
 		 {explicit, {ok, ack}, true},
-		 {explicit, {ok, leave}, false}],
+		 {explicit, {ok, requeue}, false}],
 	{"shall_ack_test_",
 	 [
 	  {lists:flatten(io_lib:format("~p", [Tx])),
@@ -247,13 +247,15 @@ error_cb_test_() ->
 ack_if_test_() ->
 	test_mocked(
 	  fun(_) ->
-			  F = fun deck36_amqp_consumer:ack_if/3,
+			  F = fun deck36_amqp_consumer:ack_if/4,
 			  {"ack_if_test_",
 			   [
 				{"true", ?_assertEqual(mocked_channel_ok,
-									   F(true, ch_mock, any))},
-				{"false", ?_assertEqual(ok,
-										F(false, ch_mock, any))}
+									   F(true, ch_mock, any, true))},
+				{"false, requeue", ?_assertEqual(mocked_channel_nack_ok,
+												 F(false, ch_mock, any, true))},
+				{"false, dont requeue", ?_assertEqual(ok,
+													  F(false, ch_mock, any, false))}
 			   ]
 			  }
 	  end).
@@ -419,7 +421,8 @@ mock_amqp_channel() ->
 						(_, #'queue.unbind'{}) ->		#'queue.unbind_ok'{}
 					 end),
 	ok = meck:expect(amqp_channel, cast,
-					 fun(_, #'basic.ack'{}) -> mocked_channel_ok
+					 fun(_, #'basic.ack'{}) -> mocked_channel_ok;
+						(_, #'basic.nack'{}) -> mocked_channel_nack_ok
 					 end),
 	ok = meck:expect(amqp_channel, close,
 					 fun(invalid) -> ok;

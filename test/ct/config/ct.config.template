@@ -15,7 +15,7 @@
 				{type, {callback, [
 					{deliver_cb, {basic_SUITE, handle_deliver}},
 					{error_cb, {basic_SUITE, handle_error}},
-					{acknowledge, all}
+					{acknowledge_mode, ok}
 				]}}
 			]
 		]},

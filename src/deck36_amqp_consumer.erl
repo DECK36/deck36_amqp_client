@@ -53,8 +53,8 @@
 %% It must return one of
 %% * ok - success, acknowledge according to acknowledge mode
 %% * {ok, ack} - success, acknowledge even if acknowledge mode is set to error
-%% * {ok, leave} - success, don't acknowledge even if acknowledge mode is set to ok or all
-%% * {error, Reason} - failure, don't acknowledge unless acknowledge mode is set to all or error
+%% * {ok, requeue} - success, don't acknowledge (but requeue) even if acknowledge mode is set to ok or all
+%% * {error, Reason} - failure, don't acknowledge unless acknowledge mode is set to all or error. If dont_requeue_on_error is set, your error handler will have to take care of the message. 
 %%
 %% ```{error_cb, CbFun}''' - optional
 %% CbFun must be a fun/1 and will be called when deliver_cb returned {error, term()}.
@@ -89,6 +89,7 @@
 -type start_opt() :: {deliver_cb, cb_def()}
 				   | {error_cb, cb_def()}
 				   | {acknowledge_mode, acknowledge_mode()}
+				   | dont_requeue_on_error
 				   | {handle_mode, non_blocking | blocking}.
 -type cb_def() :: {module(), function()}
 				| {module(), function(), [any()]}
@@ -112,7 +113,7 @@ is_valid_opts(Opts) ->
 %% ====================================================================
 %% Behavioural functions 
 %% ====================================================================
--record(state, {deliver_cb, channel, error_cb, acknowledge_mode, handle_mode=non_blocking}).
+-record(state, {deliver_cb, channel, error_cb, acknowledge_mode, requeue_on_error = true, handle_mode = non_blocking}).
 
 %% init/1
 %% ====================================================================
@@ -131,7 +132,8 @@ init([Opts]) ->
 				deliver_cb = get_cb(?GV(deliver_cb, Opts)),
 				error_cb = ErrorCb,
 				acknowledge_mode = ?GV(acknowledge_mode, Opts, all),
-				handle_mode = ?GV(handle_mode, Opts, non_blocking)
+				handle_mode = ?GV(handle_mode, Opts, non_blocking),
+				requeue_on_error = not proplists:get_bool(dont_requeue_on_error, Opts)
 			   }}.
 
 
@@ -193,13 +195,14 @@ handle_deliver(#'basic.deliver'{} = Deliver,
 					  error_cb = ErrorCb,
 					  channel = Ch,
 					  acknowledge_mode = AckMode,
-					  handle_mode = HMode}=State) ->
+					  handle_mode = HMode,
+					  requeue_on_error = ROE}=State) ->
 	case HMode of
 		blocking ->
-			do_handle_deliver(Deliver, Msg, Cb, ErrorCb, Ch, AckMode);
+			do_handle_deliver(Deliver, Msg, Cb, ErrorCb, Ch, AckMode, ROE);
 		non_blocking ->
 			proc_lib:spawn(fun() ->
-								   do_handle_deliver(Deliver, Msg, Cb, ErrorCb, Ch, AckMode)
+								   do_handle_deliver(Deliver, Msg, Cb, ErrorCb, Ch, AckMode, ROE)
 						   end)
 	end,
 	{ok, State}.
@@ -331,22 +334,23 @@ get_cb(Definition) ->
 %% - Execute Cb(Msg)
 %% - Execute ErrorCb({Reason, Deliver, Msg, Ch}) if Cb failed
 %% - Maybe acknowledge Deliver according to AckMode
--spec do_handle_deliver(#'basic.deliver'{}, #amqp_msg{}, Cb, ErrorCb, Ch, AckMode) -> ok when
+-spec do_handle_deliver(#'basic.deliver'{}, #amqp_msg{}, Cb, ErrorCb, Ch, AckMode, RequeueOnError) -> ok when
 	Cb :: fun(),
 	ErrorCb :: fun(),
 	Ch :: pid(),
-	AckMode :: acknowledge_mode().
+	AckMode :: acknowledge_mode(),
+	RequeueOnError :: boolean().
 %% ====================================================================
 do_handle_deliver(#'basic.deliver'{delivery_tag=Tag}=Deliver,
 				  #amqp_msg{}=Msg,
-				  Cb, ErrorCb, Ch, AckMode) -> 
+				  Cb, ErrorCb, Ch, AckMode, RequeueOnError) -> 
 	R = case cb(Cb,Msg) of
 			  {error, Reason} ->
 				  error_cb(ErrorCb, {Reason, Deliver, Msg, Ch}),
 				  error;
 			  X -> X
 		  end,
-	ack_if(shall_ack(AckMode, R), Ch, Tag),
+	ack_if(shall_ack(AckMode, R), Ch, Tag, RequeueOnError),
 	ok.
 
 
@@ -355,9 +359,9 @@ do_handle_deliver(#'basic.deliver'{delivery_tag=Tag}=Deliver,
 %% @doc Decide if delivery should by acknowledged
 -spec shall_ack(AckMode, Result) -> boolean() when
 	AckMode :: all | ok | error,
-	Result :: ok | {ok, ack} | {ok, leave} | error.
+	Result :: ok | {ok, ack} | {ok, requeue} | error.
 %% ====================================================================
-shall_ack(_, {ok, leave}) ->	false;
+shall_ack(_, {ok, requeue}) ->	false;
 shall_ack(all, _) ->			true;
 shall_ack(ok, ok) ->			true;
 shall_ack(_, {ok, ack}) ->		true;
@@ -402,8 +406,9 @@ error_cb(Cb, Arg) ->
 %% ack_if/3
 %% ====================================================================
 %% @doc Naybe acknowledge message
--spec ack_if(Ack :: boolean(), Ch :: pid(), Tag :: term()) -> ok.
+-spec ack_if(Ack :: boolean(), Ch :: pid(), Tag :: term(), RequeueOnError :: boolean()) -> ok.
 %% ====================================================================
-ack_if(true, Ch, Tag) ->	amqp_channel:cast(Ch, #'basic.ack'{delivery_tag=Tag});
-ack_if(false, _, _) ->		ok.
+ack_if(true, Ch, Tag, _) ->		amqp_channel:cast(Ch, #'basic.ack'{delivery_tag=Tag});
+ack_if(false, Ch, Tag, true) ->	amqp_channel:cast(Ch, #'basic.nack'{delivery_tag=Tag, requeue=true});
+ack_if(false, _, _, false) ->	ok.
 

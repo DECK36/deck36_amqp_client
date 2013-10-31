@@ -71,7 +71,9 @@
 groups() ->
 	[
 	 {application, [], [application_startup]},
-	 {consume, [sequence], [consume_base, consume_error, consume_suspend_resume]}
+	 {consume, [sequence], [consume_base,
+							consume_suspend_resume,
+							consume_error]}
 	].
 
 
@@ -147,7 +149,7 @@ consume_base(_Config) ->
 	consume_reset_actual(),
 	deck36_amqp_client:produce(Expected),
 	timer:sleep(?WAIT_TIME),
-	consume_process_results(Expected, false).
+	consume_process_results(Expected, 0).
 
 
 %% Produce message, which should trigger an error handled by handle_error
@@ -157,7 +159,7 @@ consume_error(_Config) ->
 	consume_reset_actual(),
 	deck36_amqp_client:produce(<<"trigger error">>),
 	timer:sleep(?WAIT_TIME),
-	consume_process_results(Expected, true).
+	consume_process_results(Expected, 2).
 
 
 %% 1) Produce message, which should be handle by handle_deliver
@@ -173,7 +175,7 @@ consume_suspend_resume(_Config) ->
 	consume_reset_actual(),
 	deck36_amqp_client:produce(Expected),
 	timer:sleep(?WAIT_TIME),
-	consume_process_results(Expected, false),
+	consume_process_results(Expected, 0),
 	
 	%% Suspend, produce, wait
 	consume_reset_actual(),
@@ -182,7 +184,7 @@ consume_suspend_resume(_Config) ->
 	timer:sleep(?WAIT_TIME),
 	
 	%% Assert
-	[{error_triggered, IsTriggered}] = ets:lookup(?ETS, error_triggered),
+	[{errors_triggered, Triggered}] = ets:lookup(?ETS, errors_triggered),
 	[{actual, Actual}] = ets:lookup(?ETS, actual),
 	case Actual of
 		<<>> -> ok;
@@ -193,29 +195,29 @@ consume_suspend_resume(_Config) ->
 			ct:pal(error, "Unexpected: ~p~n", [X]),
 			throw(error_consumed)
 	end,
-	case IsTriggered of
-		true ->
+	case Triggered of
+		Y when Y > 0 ->
 			ct:pal(error, "Error triggered"),
 			throw(error_triggered);
-		false -> ok
+		0 -> ok
 	end,
 	
 	ok = deck36_amqp_consumer_container:resume(Consumer),
 	timer:sleep(?WAIT_TIME),
-	consume_process_results(Expected, false).
+	consume_process_results(Expected, 0).
 	
 
 %% Helper: Reset "actual" values
 %% ====================================================================
 consume_reset_actual() ->
 	ets:insert(?ETS, {actual, <<>>}),
-	ets:insert(?ETS, {error_triggered, false}).
+	ets:insert(?ETS, {errors_triggered, 0}).
 
 
 %% Helper: Assert
 %% ====================================================================
 consume_process_results(Expected, ShouldTrigger) ->
-	[{error_triggered, IsTriggered}] = ets:lookup(?ETS, error_triggered),
+	[{errors_triggered, Triggered}] = ets:lookup(?ETS, errors_triggered),
 	[{actual, Actual}] = ets:lookup(?ETS, actual),
 	case Actual of
 		Expected -> ok;
@@ -226,37 +228,39 @@ consume_process_results(Expected, ShouldTrigger) ->
 			ct:pal(error, "Expected: ~p~nActual: ~p~n", [Expected, Actual]),
 			throw(not_triggered)
 	end,
-	case IsTriggered of
+	case Triggered of
 		ShouldTrigger -> ok;
-		true ->
+		X when X > 0 ->
 			ct:pal(error, "Error triggered, but shouldn't have been"),
 			throw(error_triggered);
-		false ->
+		0 ->
 			ct:pal(error, "Error not triggered, but should have been"),
 			throw(error_not_triggered)
 	end.
 
 %% ====================================================================
-%% Test group produce
-%% ====================================================================
-
-
-%% ====================================================================
-%% Consumer Callback
+%% Consumer Callbacks
 %% ====================================================================
 handle_deliver(#amqp_msg{payload=Payload}=Msg) ->
 	ct:pal("handle_deliver: ~p~n", [Msg]),
 	case Payload of
 		<<"trigger error">> ->
-			ets:insert(?ETS, {actual, <<"error triggered">>}),
-			{error, triggered};
+			case ets:lookup(?ETS, errors_triggered) of
+				[{errors_triggered, X}] when X > 0 ->
+					%% received requeued <<"trigger error">> -> ok
+					ets:update_counter(?ETS, errors_triggered, 1),
+					ok;
+				_ ->
+					ets:insert(?ETS, {actual, <<"error triggered">>}),
+					{error, triggered}
+			end;
 		X ->
 			ets:insert(?ETS, {actual, X}),
 			ok
 	end.
 
 handle_error(X) ->
-	ets:insert(?ETS, {error_triggered, true}),
+	ets:update_counter(?ETS, errors_triggered, 1),
 	ct:pal("handle_error: ~p~n", [X]).
 
 %% ====================================================================
