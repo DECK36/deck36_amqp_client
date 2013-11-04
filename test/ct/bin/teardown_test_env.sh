@@ -1,8 +1,19 @@
-#!/bin/sh
+#!/bin/bash
 
 err() { echo "$@" >&2; exit 1; }
 
-BASEDIR=$(readlink -f "$(dirname $0)/..")
+if [ "${OSTYPE:0:6}" = "darwin" ]; then
+	GL=$(which greadlink)
+	BASEDIR="$(dirname $0)/.."
+	if [ $? -eq 0 ]; then
+		if [ $(greadlink --version | head -c 8) = "readlink" ]; then
+			BASEDIR=$(greadlink -f "$(dirname $0)/..")
+		fi
+	fi
+else
+	BASEDIR=$(readlink -f "$(dirname $0)/..")
+fi
+
 CONFIGDIR="$BASEDIR/config"
 RMQCTL="sudo rabbitmqctl"
 
@@ -48,4 +59,4 @@ rm_file "$CT_CONFIG_FILE"
 rm_file "$INTERACTIVE_CONFIG_FILE"
 rm_file "$PASSWORD_FILE"
 
-echo "\nOK\n"
+echo -e "\nOK\n"

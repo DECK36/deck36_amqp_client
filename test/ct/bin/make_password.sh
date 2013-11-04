@@ -1,4 +1,5 @@
-#!/bin/sh
+#!/bin/bash
+
 NUM_CHARS=80
 FILENAME='.password'
 CHARSET='a-zA-Z0-9-_@#%^:='
@@ -17,4 +18,10 @@ do
 	esac
 done
 
-cat /dev/urandom | tr -dc $CHARSET | head -c $NUM_CHARS > $FILENAME
+if [ "${OSTYPE:0:6}" = "darwin" ]; then
+	LC_CTYPE=C tr -dc $CHARSET < /dev/urandom | head -c $NUM_CHARS > $FILENAME
+else
+	tr -dc $CHARSET < /dev/urandom | head -c $NUM_CHARS > $FILENAME
+fi
+
+
