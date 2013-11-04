@@ -38,51 +38,106 @@
 -behaviour(supervisor).
 -export([init/1]).
 
+-include_lib("deck36_common/include/deck36_common.hrl").
+
 %% ====================================================================
 %% Types
 %% ====================================================================
 -export_type([consumer_def/0]).
 -type consumer_def() :: [deck36_amqp_consumer:start_opt()].
+-type start_ret() :: {error, reason()}
+				   | {ok, pid()}.
 
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0, start_link/1,
-		 start_consumer/1, stop_consumers/0, which_consumers/0]).
+-export([start_link/0, start_link/1, start_link/2,
+		 start_consumers/1, start_consumers/2,
+		 start_consumer/1, start_consumer/2,
+		 stop_consumers/0, stop_consumers/1,
+		 which_consumers/0, which_consumers/1]).
+
 -define(SERVER, ?MODULE).
--define(CHILD_MOD, deck36_amqp_consumer_container).
 
 %% start_link/0
 %% ====================================================================
-%% @doc Start singleton supervisor
+%% @doc Start linked, unnamed supervisor
 -spec start_link() -> supervisor:startlink_ret().
 %% ====================================================================
 start_link() ->
-	supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+	supervisor:start_link(?MODULE, []).
 
 
 %% start_link/1
 %% ====================================================================
-%% @doc Start singleton supervisor and all Consumers
--spec start_link([Consumer]) -> {ok, pid()} when
+%% @doc Start linked, named or singleton supervisor
+-spec start_link(singleton | atom()) -> {ok, pid()}.
+%% ====================================================================
+start_link(singleton) ->
+	supervisor:start_link({local, ?SERVER}, ?MODULE, []);
+start_link(Ref) when is_atom(Ref) ->
+	supervisor:start_link({local, Ref}, ?MODULE, []).
+
+
+%% start_link/2
+%% ====================================================================
+%% @doc Start linked, named or singleton supervisor
+-spec start_link(singleton | atom(), [Consumer]) -> {ok, pid()} when
 	Consumer :: [deck36_amqp_consumer:start_opt()].
 %% ====================================================================
-start_link(Consumers) ->
-	{ok, Pid} = ?MODULE:start_link(),
-	lists:foreach(fun(C) -> ?MODULE:start_consumer(C) end, Consumers),
-	{ok, Pid}.
-	
+start_link(Ref, Consumers) ->
+	{ok, Pid} = start_link(Ref),
+	Started = start_consumers(Consumers),
+	case lists:partition(fun({ok, _}) -> true; (_) -> false end, Started) of
+		{_, []} ->
+			{ok, Pid};
+		{_, Failed} ->
+			stop_consumers(Pid),
+			exit(Pid, kill),
+			{error, {consumers_failed, Failed}}
+	end.
+
+
+%% start_consumers/1
+%% ====================================================================
+%% @doc Start consumers by singleton supervisor
+-spec start_consumers([Consumer]) -> [start_ret()] when
+	Consumer :: [deck36_amqp_consumer:start_opt()].
+%% ====================================================================
+start_consumers(Consumers) ->
+	start_consumers(?SERVER, Consumers).
+
+%% start_consumers/2
+%% ====================================================================
+%% @doc Start consumers by supervisor identified by Ref
+-spec start_consumers(server_ref(), [Consumer]) -> [start_ret()] when
+	Consumer :: [deck36_amqp_consumer:start_opt()].
+%% ====================================================================
+start_consumers(Ref, Consumers) ->
+	[start_consumer(Ref, Consumer) || Consumer <- Consumers].
+
 
 %% start_consumer/1
 %% ====================================================================
-%% @doc Start consumer (transient)
+%% @doc Start consumer (transient) by singleton server
 -spec start_consumer([deck36_amqp_consumer:start_opt()]) -> Result when
-	Result :: {error, Reason}
-			| {ok, pid},
-	Reason :: term().
+	Result :: {error, reason()}
+			| {ok, pid()}.
 %% ====================================================================
 start_consumer(Opts) ->
-	case supervisor:start_child(?SERVER, [Opts]) of
+	start_consumer(?SERVER, Opts).
+
+
+%% start_consumer/2
+%% ====================================================================
+%% @doc Start consumer (transient) by supervisor identified by Ref
+-spec start_consumer(Ref, [deck36_amqp_consumer:start_opt()]) -> Result when
+	Ref :: server_ref(),
+	Result :: {error, reason()}
+			| {ok, pid()}.
+%% ====================================================================
+start_consumer(Ref, Opts) ->
+	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
 			error_logger:error_report({?MODULE, start_consumer, {Opts, Reason}}),
 			{error, Reason};
@@ -95,22 +150,41 @@ start_consumer(Opts) ->
 
 %% stop_consumers/0
 %% ====================================================================
-%% @doc Stop all consumers
+%% @doc Stop all consumers of singleton supervisor
 -spec stop_consumers() -> ok.
 %% ====================================================================
 stop_consumers() ->
+	stop_consumers(?SERVER).
+
+
+%% stop_consumers/1
+%% ====================================================================
+%% @doc Stop all consumers of supervisor identified by Ref
+-spec stop_consumers(Ref :: server_ref()) -> ok.
+%% ====================================================================
+stop_consumers(Ref) ->
 	lists:foreach(fun(Pid) ->
 						  deck36_amqp_consumer_container:stop(Pid)
 				  end,
-				  which_consumers()).
+				  which_consumers(Ref)).
+
 
 %% which_consumers/0
 %% ====================================================================
-%% @doc Get list of running consumers
+%% @doc Get list of running consumers from singleton supervisor
 -spec which_consumers() -> [pid()].
 %% ====================================================================
 which_consumers() ->
-	[Pid || {_, Pid, _, _} <- supervisor:which_children(?SERVER)].
+	which_consumers(?SERVER).
+
+
+%% which_consumers/1
+%% ====================================================================
+%% @doc Get list of running consumers from supervisor identified by Ref
+-spec which_consumers(Ref :: server_ref()) -> [pid()].
+%% ====================================================================
+which_consumers(Ref) ->
+	[Pid || {_, Pid, _, _} <- supervisor:which_children(Ref)].
 
 
 %% ====================================================================

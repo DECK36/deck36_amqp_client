@@ -105,7 +105,7 @@ start_setup_sup(Ref, Opts) ->
 %% ====================================================================
 start_consumer_sup(Ref, Opts) ->
 	Consumers = proplists:get_value(consumers, Opts, []),
-	ConsumerSup = {deck36_amqp_consumer_sup, {deck36_amqp_consumer_sup, start_link, [Consumers]},
+	ConsumerSup = {deck36_amqp_consumer_sup, {deck36_amqp_consumer_sup, start_link, [singleton, Consumers]},
 				   permanent, 10000, supervisor, [deck36_amqp_consumer_sup]},
 	supervisor:start_child(Ref, ConsumerSup).
 	
@@ -119,7 +119,7 @@ start_consumer_sup(Ref, Opts) ->
 %% ====================================================================
 start_producer_sup(Ref, Opts) ->
 	Producers = proplists:get_value(producers, Opts, []),
-	ProducerSup = {deck36_ampq_producer_sup, {deck36_amqp_producer_sup, start_link, [Producers]},
+	ProducerSup = {deck36_amqp_producer_sup, {deck36_amqp_producer_sup, start_link, [Producers]},
 				   permanent, 10000, supervisor, [deck36_amqp_producer_sup]},
 	supervisor:start_child(Ref, ProducerSup).
 
