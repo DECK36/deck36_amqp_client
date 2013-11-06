@@ -55,7 +55,8 @@
 -type start_opts() :: [start_opt()].
 -type start_opt() :: {connection, deck36_amqp_util:connection_def()}
 				   | {queue, deck36_amqp_util:queue_def()}
-				   | {processor, processor_def()}.
+				   | {processor, processor_def()}
+				   | start_suspended.
 -type processor_def() :: {callback, [deck36_amqp_callback_processor:start_opt()]}
 					   | {module(), term()}.
 
@@ -150,8 +151,13 @@ init([Opts]) ->
 	Queue = deck36_amqp_util:queue(?GV(queue, Opts)),
 	Ch = deck36_amqp_connection:get_channel(Conn),
 	ok = amqp_channel:call_consumer(Ch, {set_channel, Ch}),
-	#'queue.declare_ok'{queue=Q} = amqp_channel:call(Ch, Queue),
-	#'basic.consume_ok'{consumer_tag = Tag} = amqp_channel:call(Ch, #'basic.consume'{queue=Q}), 
+	Tag = case proplists:get_bool(start_suspended, Opts) of
+			  true -> undefined;
+			  false ->
+				  #'queue.declare_ok'{queue=Q} = amqp_channel:call(Ch, Queue),
+				  #'basic.consume_ok'{consumer_tag = CTag} = amqp_channel:call(Ch, #'basic.consume'{queue=Q}),
+				  CTag
+		end,
 	{ok, #state{
 				conn = Conn,
 				queue = Queue,

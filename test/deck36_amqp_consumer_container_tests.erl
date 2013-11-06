@@ -152,7 +152,14 @@ code_change_test_() ->
 init_test_() ->
 	test_mocked(
 	  fun(_) ->
-			  ?_assertMatch({ok, #state{}}, deck36_amqp_consumer_container:init([?OPTS]))
+			  [
+			   {"start running",
+				?_assertMatch({ok, #state{consumer_tag = T}} when T /= undefined,
+							  deck36_amqp_consumer_container:init([?OPTS]))},
+			   {"start suspended",
+				?_assertMatch({ok, #state{consumer_tag = undefined}},
+							  deck36_amqp_consumer_container:init([[start_suspended | ?OPTS]]))}
+			  ]
 	  end).
 
 
