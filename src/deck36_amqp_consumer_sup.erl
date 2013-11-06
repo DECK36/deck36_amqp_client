@@ -81,7 +81,7 @@ start_link(Ref) when is_atom(Ref) ->
 
 %% start_link/2
 %% ====================================================================
-%% @doc Start linked, named or singleton supervisor
+%% @doc Start linked, named or singleton supervisor with consumers
 -spec start_link(singleton | atom(), [Consumer]) -> {ok, pid()} when
 	Consumer :: [deck36_amqp_consumer:start_opt()].
 %% ====================================================================
