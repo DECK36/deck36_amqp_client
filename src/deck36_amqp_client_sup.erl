@@ -91,7 +91,7 @@ start_link(Opts) ->
 %% ====================================================================
 start_setup_sup(Ref, Opts) ->
 	Setups = proplists:get_value(setups, Opts, []),
-	SetupSup = {deck36_amqp_setup, {deck36_amqp_setup_sup, start_link, [Setups]},
+	SetupSup = {deck36_amqp_setup, {deck36_amqp_setup_sup, start_link, [singleton, Setups]},
 				   permanent, 2000, supervisor, [deck36_amqp_setup]},
 	supervisor:start_child(Ref, SetupSup).
 

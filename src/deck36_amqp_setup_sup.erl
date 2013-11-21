@@ -38,26 +38,87 @@
 -behaviour(supervisor).
 -export([init/1]).
 
+-include_lib("deck36_common/include/deck36_common.hrl").
+
+%% ====================================================================
+%% Types
+%% ====================================================================
+-export_type([setup_def/0]).
+-type setup_def() :: [deck36_amqp_setup:start_opt()].
+-type start_ret() :: {error, reason()}
+				   | {ok, pid()}.
+
+
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0, start_link/1, start_setup/1, stop_setups/0, which_setups/0]).
+-export([start_link/1, start_link/2,
+		 start_setups/1, start_setups/2,
+		 start_setup/1, start_setup/2,
+		 stop_setups/0, stop_setups/1,
+		 which_setups/0, which_setups/1]).
 -define(SERVER, ?MODULE).
 
-start_link() ->
-	supervisor:start_link({local, ?SERVER}, ?MODULE, []).
+%% start_link/1
+%% ====================================================================
+%% @doc Start linked, (named, unnamed or singleton) supervisor
+-spec start_link(singleton | atom()) -> {ok, pid()}.
+%% ====================================================================
+start_link(singleton) ->
+	supervisor:start_link({local, ?SERVER}, ?MODULE, []);
+start_link(unnamed) ->
+	supervisor:start_link(?MODULE, []);
+start_link(Ref) ->
+	supervisor:start_link({local, Ref}, ?MODULE, []).
 
 
-start_link(Setups) ->
-	{ok, Pid} = start_link(),
+%% start_link/2
+%% ====================================================================
+%% @doc Start linked, (named, unnamed or singleton) supervisor with setups
+-spec start_link(singleton | unnamed | atom(), [setup_def()]) -> {ok, pid()}.
+%% ====================================================================
+start_link(Ref, Setups) ->
+	{ok, Pid} = start_link(Ref),
 	lists:foreach(fun(S) ->
 						  ?MODULE:start_setup(S)
 				  end, Setups),
 	{ok, Pid}.
 
 
+%% start_setups/1
+%% ====================================================================
+%% @doc Start setups by singleton supervisor
+-spec start_setups([setup_def()]) -> [start_ret()].
+%% ====================================================================
+start_setups(Setups) ->
+	start_setups(?SERVER, Setups).
+
+
+%% start_setups/2
+%% ====================================================================
+%% @doc Start setups by supervisor identified by Ref
+-spec start_setups(server_ref(), [setup_def()]) -> [start_ret()].
+%% ====================================================================
+start_setups(Ref, Setups) ->
+	[start_setup(Ref, Setup) || Setup <- Setups].
+
+
+%% start_setup/1
+%% ====================================================================
+%% @doc Start setup (transient) by singleton supervisor
+-spec start_setup(setup_def()) -> [start_ret()].
+%% ====================================================================
 start_setup(Opts) ->
-	case supervisor:start_child(?SERVER, [Opts]) of
+	start_setup(?SERVER, Opts).
+
+
+%% start_setup/2
+%% ====================================================================
+%% @doc Start setup (transient) by supervisor identified by Ref
+-spec start_setup(server_ref(), setup_def()) -> [start_ret()].
+%% ====================================================================
+start_setup(Ref, Opts) ->
+	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
 			error_logger:error_report({?MODULE, start_setup, {Opts, Reason}}),
 			{error, Reason};
@@ -68,15 +129,44 @@ start_setup(Opts) ->
 	end.
 
 
+%% stop_setups/0
+%% ====================================================================
+%% @doc Stop all setups of singleton supervisor
+-spec stop_setups() -> ok.
+%% ====================================================================
 stop_setups() ->
+	stop_setups(?SERVER).
+
+
+%% stop_setups/1
+%% ====================================================================
+%% @doc Stop all setups of supervisor identified by Ref
+-spec stop_setups(server_ref()) -> ok.
+%% ====================================================================
+stop_setups(Ref) ->
 	lists:foreach(fun(Pid) ->
 						  deck36_amqp_setup:stop(Pid)
 				  end,
-				  which_setups()).
+				  which_setups(Ref)).
 
 
+%% which_setups/0
+%% ====================================================================
+%% @doc Get list of running setups from singleton supervisor
+-spec which_setups() -> [pid()].
+%% ====================================================================
 which_setups() ->
-	[Pid || {_, Pid, _, _} <- supervisor:which_children(?SERVER)].
+	which_setups(?SERVER).
+
+
+%% which_setups/1
+%% ====================================================================
+%% @doc Get list of running setups from supervisor identified by Ref
+-spec which_setups(server_ref()) -> [pid()].
+%% ====================================================================
+which_setups(Ref) ->
+	[Pid || {_, Pid, _, _} <- supervisor:which_children(Ref)].
+
 
 %% ====================================================================
 %% Behavioural functions 
