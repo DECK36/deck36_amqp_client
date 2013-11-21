@@ -111,9 +111,7 @@ start_consumers(Ref, Consumers) ->
 %% start_consumer/1
 %% ====================================================================
 %% @doc Start consumer (transient) by singleton server
--spec start_consumer(consumer_def()) -> Result when
-	Result :: {error, reason()}
-			| {ok, pid()}.
+-spec start_consumer(consumer_def()) -> start_ret().
 %% ====================================================================
 start_consumer(Opts) ->
 	start_consumer(?SERVER, Opts).
@@ -122,10 +120,7 @@ start_consumer(Opts) ->
 %% start_consumer/2
 %% ====================================================================
 %% @doc Start consumer (transient) by supervisor identified by Ref
--spec start_consumer(Ref, consumer_def()) -> Result when
-	Ref :: server_ref(),
-	Result :: {error, reason()}
-			| {ok, pid()}.
+-spec start_consumer(server_ref(), consumer_def()) -> start_ret().
 %% ====================================================================
 start_consumer(Ref, Opts) ->
 	case supervisor:start_child(Ref, [Opts]) of
