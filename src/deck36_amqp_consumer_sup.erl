@@ -51,7 +51,7 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0, start_link/1, start_link/2,
+-export([start_link/1, start_link/2,
 		 start_consumers/1, start_consumers/2,
 		 start_consumer/1, start_consumer/2,
 		 stop_consumers/0, stop_consumers/1,
@@ -59,31 +59,23 @@
 
 -define(SERVER, ?MODULE).
 
-%% start_link/0
-%% ====================================================================
-%% @doc Start linked, unnamed supervisor
--spec start_link() -> supervisor:startlink_ret().
-%% ====================================================================
-start_link() ->
-	supervisor:start_link(?MODULE, []).
-
-
 %% start_link/1
 %% ====================================================================
-%% @doc Start linked, named or singleton supervisor
--spec start_link(singleton | atom()) -> {ok, pid()}.
+%% @doc Start linked, (named, unnamed or singleton) supervisor
+-spec start_link(singleton | unnamed | atom()) -> {ok, pid()}.
 %% ====================================================================
 start_link(singleton) ->
 	supervisor:start_link({local, ?SERVER}, ?MODULE, []);
+start_link(unnamed) ->
+	supervisor:start_link(?MODULE, []);
 start_link(Ref) when is_atom(Ref) ->
 	supervisor:start_link({local, Ref}, ?MODULE, []).
 
 
 %% start_link/2
 %% ====================================================================
-%% @doc Start linked, named or singleton supervisor with consumers
--spec start_link(singleton | atom(), [Consumer]) -> {ok, pid()} when
-	Consumer :: [deck36_amqp_consumer:start_opt()].
+%% @doc Start linked, (named, unnamed or singleton) supervisor with consumers
+-spec start_link(singleton | unnamed | atom(), [consumer_def()]) -> {ok, pid()}.
 %% ====================================================================
 start_link(Ref, Consumers) ->
 	{ok, Pid} = start_link(Ref),
@@ -101,17 +93,16 @@ start_link(Ref, Consumers) ->
 %% start_consumers/1
 %% ====================================================================
 %% @doc Start consumers by singleton supervisor
--spec start_consumers([Consumer]) -> [start_ret()] when
-	Consumer :: [deck36_amqp_consumer:start_opt()].
+-spec start_consumers([consumer_def()]) -> [start_ret()].
 %% ====================================================================
 start_consumers(Consumers) ->
 	start_consumers(?SERVER, Consumers).
 
+
 %% start_consumers/2
 %% ====================================================================
 %% @doc Start consumers by supervisor identified by Ref
--spec start_consumers(server_ref(), [Consumer]) -> [start_ret()] when
-	Consumer :: [deck36_amqp_consumer:start_opt()].
+-spec start_consumers(server_ref(), [consumer_def()]) -> [start_ret()].
 %% ====================================================================
 start_consumers(Ref, Consumers) ->
 	[start_consumer(Ref, Consumer) || Consumer <- Consumers].
@@ -120,7 +111,7 @@ start_consumers(Ref, Consumers) ->
 %% start_consumer/1
 %% ====================================================================
 %% @doc Start consumer (transient) by singleton server
--spec start_consumer([deck36_amqp_consumer:start_opt()]) -> Result when
+-spec start_consumer(consumer_def()) -> Result when
 	Result :: {error, reason()}
 			| {ok, pid()}.
 %% ====================================================================
@@ -131,7 +122,7 @@ start_consumer(Opts) ->
 %% start_consumer/2
 %% ====================================================================
 %% @doc Start consumer (transient) by supervisor identified by Ref
--spec start_consumer(Ref, [deck36_amqp_consumer:start_opt()]) -> Result when
+-spec start_consumer(Ref, consumer_def()) -> Result when
 	Ref :: server_ref(),
 	Result :: {error, reason()}
 			| {ok, pid()}.
