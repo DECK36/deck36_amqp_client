@@ -62,7 +62,7 @@
 %% start_link/1
 %% ====================================================================
 %% @doc Start linked, (named, unnamed or singleton) supervisor
--spec start_link(singleton | unnamed | atom()) -> {ok, pid()}.
+-spec start_link(singleton | unnamed | atom()) -> start_ret().
 %% ====================================================================
 start_link(singleton) ->
 	supervisor:start_link({local, ?SERVER}, ?MODULE, []);
@@ -75,7 +75,7 @@ start_link(Ref) when is_atom(Ref) ->
 %% start_link/2
 %% ====================================================================
 %% @doc Start linked, (named, unnamed or singleton) supervisor with consumers
--spec start_link(singleton | unnamed | atom(), [consumer_def()]) -> {ok, pid()}.
+-spec start_link(singleton | unnamed | atom(), [consumer_def()]) -> start_ret().
 %% ====================================================================
 start_link(Ref, Consumers) ->
 	{ok, Pid} = start_link(Ref),
@@ -125,7 +125,7 @@ start_consumer(Opts) ->
 start_consumer(Ref, Opts) ->
 	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
-			error_logger:error_report({?MODULE, start_consumer, {Opts, Reason}}),
+			error_logger:error_report({?MODULE, start_consumer, {Ref, Opts, Reason}}),
 			{error, Reason};
 		{ok, Child, _} ->
 			{ok, Child};

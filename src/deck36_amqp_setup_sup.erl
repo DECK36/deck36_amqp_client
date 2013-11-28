@@ -120,7 +120,7 @@ start_setup(Opts) ->
 start_setup(Ref, Opts) ->
 	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
-			error_logger:error_report({?MODULE, start_setup, {Opts, Reason}}),
+			error_logger:error_report({?MODULE, start_setup, {Ref, Opts, Reason}}),
 			{error, Reason};
 		{ok, Child, _} ->
 			{ok, Child};
