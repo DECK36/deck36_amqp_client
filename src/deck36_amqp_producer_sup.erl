@@ -38,46 +38,93 @@
 -behaviour(supervisor).
 -export([init/1]).
 
+-include_lib("deck36_common/include/deck36_common.hrl").
+
+%% ====================================================================
+%% Types
+%% ====================================================================
+-export_type([producer_def/0]).
+-type producer_def() :: [deck36_amqp_producer:start_opt()].
+-type start_ret() :: {error, reason()}
+				   | {ok, pid()}.
+
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start_link/0, start_link/1,
-		 start_producer/1, stop_producers/0, which_producers/0]).
+-export([start_link/1, start_link/2,
+		 start_producer/1, start_producer/2,
+		 start_producers/1, start_producers/2,
+		 stop_producers/0, stop_producers/1,
+		 which_producers/0, which_producers/1]).
 -define(SERVER, ?MODULE).
-
-%% start_link/0
-%% ====================================================================
-%% @doc Start singleton supervisor
--spec start_link() -> supervisor:startlink_ret().
-%% ====================================================================
-start_link() ->
-	supervisor:start_link({local, ?SERVER}, ?MODULE, []).
-
 
 %% start_link/1
 %% ====================================================================
-%% @doc Start singleton supervisor and all Producers
--spec start_link([Producer]) -> {ok, pid()} when
-	Producer :: [deck36_amqp_producer:start_opt()].
+%% @doc Start linked, (named, unnamed or singleton) supervisor
+-spec start_link(singleton | unnamed | atom()) -> supervisor:startlink_ret().
 %% ====================================================================
-start_link(Producers) ->
-	{ok, Pid} = start_link(),
-	lists:foreach(fun(P) -> ?MODULE:start_producer(P) end, Producers),
-	{ok, Pid}.
+start_link(singleton) ->
+	supervisor:start_link({local, ?SERVER}, ?MODULE, []);
+start_link(unnamed) ->
+	supervisor:start_link(?MODULE, []);
+start_link(Ref) when is_atom(Ref) ->
+	supervisor:start_link({local, Ref}, ?MODULE, []).
+
+
+%% start_link/2
+%% ====================================================================
+%% @doc Start singleton supervisor and all Producers
+-spec start_link(singleton | unnamed | atom(), [producer_def()]) -> start_ret().
+%% ====================================================================
+start_link(Ref, Producers) ->
+	{ok, Pid} = start_link(Ref),
+	Started = start_producers(Producers),
+	case lists:partition(fun({ok, _}) -> true; (_) -> false end, Started) of
+		{_, []} ->
+			{ok, Pid};
+		{_, Failed} ->
+			stop_producers(Pid),
+			exit(Pid, kill),
+			{error, {producers_failed, Failed}}
+	end.
+
+
+%% start_producers/1
+%% ====================================================================
+%% @doc Start producers by singleton supervisor
+-spec start_producers([producer_def()]) -> [start_ret()].
+%% ====================================================================
+start_producers(Producers) ->
+	start_producers(?SERVER, Producers).
+
+
+%% start_producers/2
+%% ====================================================================
+%% @doc Start producers by supervisor identified by Ref
+-spec start_producers(server_ref(), [producer_def()]) -> [start_ret()].
+%% ====================================================================
+start_producers(Ref, Producers) ->
+	[start_producer(Ref, Producer) || Producer <- Producers].
 
 
 %% start_producer/1
 %% ====================================================================
-%% @doc Start producer (transient)
--spec start_producer([deck36_amqp_producer:start_opt()]) -> Result when
-	Result :: {error, Reason}
-			| {ok, pid},
-	Reason :: term().
+%% @doc Start producer (transient) by singleton server
+-spec start_producer([deck36_amqp_producer:start_opt()]) -> start_ret().
 %% ====================================================================
 start_producer(Opts) ->
-	case supervisor:start_child(?SERVER, [Opts]) of
+	start_producer(?SERVER, Opts).
+
+
+%% start_producer/2
+%% ====================================================================
+%% @doc Start producer (transient) by supervisor identified by Ref
+-spec start_producer(server_ref(), [deck36_amqp_producer:start_opt()]) -> start_ret().
+%% ====================================================================
+start_producer(Ref, Opts) ->
+	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
-			error_logger:error_report({?MODULE, start_producer, {Opts, Reason}}),
+			error_logger:error_report({?MODULE, start_producer, {Ref, Opts, Reason}}),
 			{error, Reason};
 		{ok, Child, _} ->
 			{ok, Child};
@@ -88,24 +135,43 @@ start_producer(Opts) ->
 
 %% stop_producers/0
 %% ====================================================================
-%% @doc Stop all producers
+%% @doc Stop all producers of singleton supervisor
 -spec stop_producers() -> ok.
 %% ====================================================================
 stop_producers() ->
+	stop_producers(?SERVER).
+
+
+%% stop_producers/1
+%% ====================================================================
+%% @doc Stop all producers of supervisor identified by Ref
+-spec stop_producers(server_ref()) -> ok.
+%% ====================================================================
+stop_producers(Ref) ->
 	lists:foreach(fun(Pid) ->
 						  deck36_amqp_producer:stop(Pid)
 				  end,
-				  which_producers()).
+				  which_producers(Ref)).
 
 
 %% which_producers/0
 %% ====================================================================
-%% @doc Get list of running producers
+%% @doc Get list of running producers from singleton supervisor
 -spec which_producers() -> [pid()].
 %% ====================================================================
 which_producers() ->
-	[Pid || {_, Pid, _, _} <- supervisor:which_children(?SERVER)].
+	which_producers(?SERVER).
+
+
+%% which_producers/1
+%% ====================================================================
+%% @doc Get list of running producers from supervisor identified by Ref
+-spec which_producers(server_ref()) -> [pid()].
+%% ====================================================================
+which_producers(Ref) ->
+	[Pid || {_, Pid, _, _} <- supervisor:which_children(Ref)].
 	
+
 %% ====================================================================
 %% Behavioural functions 
 %% ====================================================================
