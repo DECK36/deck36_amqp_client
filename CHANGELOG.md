@@ -1,3 +1,9 @@
+0.3.1
+
+Bugfix: deck36_amqp_setup_sup:start_link/2 now using started process instead of singleton process
+Bugfix: deck36_amqp_producer_sup:start_link/2 now using started process instead of singleton process
+Bugfix: deck36_amqp_consumer_sup:start_link/2 now using started process instead of singleton process
+
 0.3.0
 
 New: MacOS X support for helper scripts
