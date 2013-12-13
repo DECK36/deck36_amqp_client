@@ -79,11 +79,11 @@ start_link(Ref) when is_atom(Ref) ->
 %% ====================================================================
 start_link(Ref, Consumers) ->
 	{ok, Pid} = start_link(Ref),
-	Started = start_consumers(Consumers),
-	case lists:partition(fun({ok, _}) -> true; (_) -> false end, Started) of
-		{_, []} ->
+	Started = start_consumers(Pid, Consumers),
+	case lists:filter(fun({ok, _}) -> false; (_) -> true end, Started) of
+		[] ->
 			{ok, Pid};
-		{_, Failed} ->
+		Failed ->
 			stop_consumers(Pid),
 			exit(Pid, kill),
 			{error, {consumers_failed, Failed}}
@@ -105,7 +105,10 @@ start_consumers(Consumers) ->
 -spec start_consumers(server_ref(), [consumer_def()]) -> [start_ret()].
 %% ====================================================================
 start_consumers(Ref, Consumers) ->
-	[start_consumer(Ref, Consumer) || Consumer <- Consumers].
+	[case start_consumer(Ref, Consumer) of
+		 {ok, Pid} -> {ok, Pid};
+		 {error, Reason} -> {error, {Ref, Consumer, Reason}}
+	 end || Consumer <- Consumers].
 
 
 %% start_consumer/1
@@ -125,7 +128,6 @@ start_consumer(Opts) ->
 start_consumer(Ref, Opts) ->
 	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
-			error_logger:error_report({?MODULE, start_consumer, {Ref, Opts, Reason}}),
 			{error, Reason};
 		{ok, Child, _} ->
 			{ok, Child};

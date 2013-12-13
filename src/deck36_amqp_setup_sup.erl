@@ -79,10 +79,15 @@ start_link(Ref) ->
 %% ====================================================================
 start_link(Ref, Setups) ->
 	{ok, Pid} = start_link(Ref),
-	lists:foreach(fun(S) ->
-						  ?MODULE:start_setup(S)
-				  end, Setups),
-	{ok, Pid}.
+	Started = start_setups(Pid, Setups),
+	case lists:filter(fun({ok, _}) -> false; (_) -> true end, Started) of
+		[] ->
+			{ok, Pid};
+		Failed ->
+			stop_setups(Pid),
+			exit(Pid, kill),
+			{error, {setups_failed, Failed}}
+	end.
 
 
 %% start_setups/1
@@ -100,7 +105,10 @@ start_setups(Setups) ->
 -spec start_setups(server_ref(), [setup_def()]) -> [start_ret()].
 %% ====================================================================
 start_setups(Ref, Setups) ->
-	[start_setup(Ref, Setup) || Setup <- Setups].
+	[case start_setup(Ref, Setup) of
+		 {ok, Pid} -> {ok, Pid};
+		 {error, Reason} -> {error, {Ref, Setup, Reason}}
+	 end || Setup <- Setups].
 
 
 %% start_setup/1
@@ -120,7 +128,6 @@ start_setup(Opts) ->
 start_setup(Ref, Opts) ->
 	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
-			error_logger:error_report({?MODULE, start_setup, {Ref, Opts, Reason}}),
 			{error, Reason};
 		{ok, Child, _} ->
 			{ok, Child};

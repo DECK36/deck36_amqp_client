@@ -78,11 +78,11 @@ start_link(Ref) when is_atom(Ref) ->
 %% ====================================================================
 start_link(Ref, Producers) ->
 	{ok, Pid} = start_link(Ref),
-	Started = start_producers(Producers),
-	case lists:partition(fun({ok, _}) -> true; (_) -> false end, Started) of
-		{_, []} ->
+	Started = start_producers(Pid, Producers),
+	case lists:filter(fun({ok, _}) -> false; (_) -> true end, Started) of
+		[] ->
 			{ok, Pid};
-		{_, Failed} ->
+		Failed ->
 			stop_producers(Pid),
 			exit(Pid, kill),
 			{error, {producers_failed, Failed}}
@@ -104,7 +104,10 @@ start_producers(Producers) ->
 -spec start_producers(server_ref(), [producer_def()]) -> [start_ret()].
 %% ====================================================================
 start_producers(Ref, Producers) ->
-	[start_producer(Ref, Producer) || Producer <- Producers].
+	[case start_producer(Ref, Producer) of
+		 {ok, Pid} -> {ok, Pid};
+		 {error, Reason} -> {error, {Ref, Producer, Reason}}
+	 end || Producer <- Producers].
 
 
 %% start_producer/1
@@ -124,7 +127,6 @@ start_producer(Opts) ->
 start_producer(Ref, Opts) ->
 	case supervisor:start_child(Ref, [Opts]) of
 		{error, Reason} ->
-			error_logger:error_report({?MODULE, start_producer, {Ref, Opts, Reason}}),
 			{error, Reason};
 		{ok, Child, _} ->
 			{ok, Child};
