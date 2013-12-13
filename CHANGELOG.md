@@ -1,3 +1,7 @@
+0.3.2
+
+Improved Mac OSX compatibility in bash scripts.
+
 0.3.1
 
 Bugfix: deck36_amqp_setup_sup:start_link/2 now using started process instead of singleton process
