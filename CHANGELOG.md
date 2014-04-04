@@ -1,6 +1,6 @@
 0.3.2
 
-Improved Mac OSX compatibility in bash scripts.
+Improved MacOSX compatibility in bash scripts.
 
 0.3.1
 
