@@ -1,3 +1,7 @@
+0.3.3
+
+Moved meck dependency to deck36_common. Waiting for rebar to support test-deps / dev-deps. 
+
 0.3.2
 
 Improved MacOSX compatibility in bash scripts.
