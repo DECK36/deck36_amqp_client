@@ -5,8 +5,9 @@ before_install:
   - sudo apt-get install rabbitmq-server
 before_script:
   - sudo service rabbitmq-server start
-  - sudo rabbitmqctl report
   - test/ct/bin/setup_test_env.sh
+  - sudo rabbitmqctl report
+  - sudo rabbitmqctl list_users
   - epmd -daemon
 script: make travis
 after_script:
