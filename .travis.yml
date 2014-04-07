@@ -1,5 +1,7 @@
 language: erlang
 notifications:
   email: false
+before_script:
+  - epmd -daemon
 otp_release:
   - R16B03
