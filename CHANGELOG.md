@@ -1,3 +1,7 @@
+next
+-----
+New: Travis support added
+
 0.3.3
 
 Moved meck dependency to deck36_common. Waiting for rebar to support test-deps / dev-deps. 
