@@ -1,7 +1,11 @@
 language: erlang
 notifications:
   email: false
+before_install:
+  - sudo apt-get install rabbitmq-server
 before_script:
+  - test/ct/bin/setup_test_env.sh
   - epmd -daemon
+script: make travis
 otp_release:
   - R16B03

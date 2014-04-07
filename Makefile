@@ -3,6 +3,7 @@ all: compile docs
 update: get-deps update-deps
 full: clean-all get-deps update-deps compile docs full-tests
 ci: get-deps update-deps compile docs tests
+travis: get-deps update-deps compile docs full-tests
 prod: get-deps update-deps compile-prod tests docs
 
 get-deps:
