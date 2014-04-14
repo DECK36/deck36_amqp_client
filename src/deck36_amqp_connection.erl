@@ -141,21 +141,21 @@ ensure_open(S) ->
 %% ====================================================================
 ensure_open(#state{conn = undefined, ch = undefined, params = Params}=Connection, Consumer) ->
 	{ok, Conn} = amqp_connection:start(Params),
-	erlang:link(Conn),
+	link(Conn),
 	ensure_open(Connection#state{conn = Conn}, Consumer);
 ensure_open(#state{conn = undefined, ch = Ch}=Connection, Consumer) ->
-	erlang:unlink(Ch),
+	unlink(Ch),
 	amqp_channel:close(Ch),
 	ensure_open(Connection#state{ch = undefined}, Consumer);
 ensure_open(#state{ch = undefined, conn = Conn}=Connection, Consumer) ->
 	case open_channel(Conn, Consumer) of
 		{ok, Ch} ->
-			erlang:link(Ch),
+			link(Ch),
 			ensure_open(Connection#state{ch = Ch});
 		{error, Reason} ->
-			erlang:unlink(Conn),
+			unlink(Conn),
 			amqp_connection:close(Conn),
-			erlang:error("Failed to open channel: ~p", [Reason])
+			error("Failed to open channel: ~p", [Reason])
 	end;
 ensure_open(Connection, _Consumer) ->
 	Connection.
@@ -168,11 +168,11 @@ ensure_open(Connection, _Consumer) ->
 ensure_closed(#state{ch = undefined, conn = undefined}=Connection) ->
 	Connection;
 ensure_closed(#state{conn = Conn, ch = undefined}=Connection) ->
-	erlang:unlink(Conn),
+	unlink(Conn),
 	amqp_connection:close(Conn),
 	ensure_closed(Connection#state{conn = undefined});
 ensure_closed(#state{ch = Ch}=Connection) ->
-	erlang:unlink(Ch),
+	unlink(Ch),
 	amqp_channel:close(Ch),
 	ensure_closed(Connection#state{ch = undefined}).
 
@@ -184,8 +184,8 @@ ensure_closed(#state{ch = Ch}=Connection) ->
 %% ====================================================================
 is_open(#state{ch = Ch, conn = Conn}) ->
 	((Ch /= undefined) and (Conn /= undefined)) andalso
-		erlang:is_process_alive(Ch) andalso
-		erlang:is_process_alive(Conn).
+		is_process_alive(Ch) andalso
+		is_process_alive(Conn).
 
 
 %% open_apply_close/2
@@ -287,13 +287,13 @@ declare(Ch, #'queue.unbind'{}=D) ->
 host(Host) when is_list(Host) ->
 	case io_lib:printable_list(Host) of
 		true -> Host;
-		false -> erlang:error(einval)
+		false -> error(einval)
 	end;
 host(Host) when is_binary(Host) ->
-	host(erlang:binary_to_list(Host));
+	host(binary_to_list(Host));
 host(Host) when is_tuple(Host) ->
 	case deck36_inet:ntoa(Host) of
-		{error, einval} -> erlang:error(einval);
+		{error, einval} -> error(einval);
 		String -> String
 	end.
 
@@ -306,7 +306,7 @@ host(Host) when is_tuple(Host) ->
 bin(Bin) when is_binary(Bin) ->
 	Bin;
 bin(List) when is_list(List) ->
-	erlang:list_to_binary(List).
+	list_to_binary(List).
 
 
 %% open_channel/2

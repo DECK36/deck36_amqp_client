@@ -394,7 +394,7 @@ do_info(#state{declarations=D, opts=O}) ->
 do_declare(Decs, #state{declarations=SDecs, conn=Conn}=S) ->
 	case [Dec || Dec <- Decs, lists:member(Dec, SDecs)] of
 		[] -> ok;
-		L -> erlang:error(lists:flatten(io_lib:format("Already declared: ~p", [L])))
+		L -> error(lists:flatten(io_lib:format("Already declared: ~p", [L])))
 	end,
 	ok = deck36_amqp_connection:open_declare_close(Conn, Decs),
 	{ok, S#state{declarations = lists:reverse(Decs) ++ SDecs}}.
@@ -431,6 +431,6 @@ prepare_deletion(D, SDelDecs) ->
 		false ->
 			case lists:keymember(D, 2, SDelDecs) of
 				true -> {D, deck36_amqp_util:deletion(D)};
-				false -> erlang:error(lists:flatten(io_lib:format("Not declared: ~p", [D])))
+				false -> error(lists:flatten(io_lib:format("Not declared: ~p", [D])))
 			end
 	end.

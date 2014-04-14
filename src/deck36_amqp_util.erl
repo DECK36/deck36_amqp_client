@@ -166,7 +166,7 @@ is_queue(_) ->					false.
 -spec is_queue_def(term()) -> boolean().
 %% ====================================================================
 is_queue_def(#'queue.declare'{}) ->	true;
-is_queue_def(O) when is_list(O) ->	erlang:is_binary(?GV(queue, O));
+is_queue_def(O) when is_list(O) ->	is_binary(?GV(queue, O));
 is_queue_def(_) ->					false.
 
 
@@ -209,7 +209,7 @@ is_exchange(_) ->						false.
 -spec is_exchange_def(term()) -> boolean().
 %% ====================================================================
 is_exchange_def(#'exchange.declare'{}) ->	true;
-is_exchange_def(O) when is_list(O) ->		erlang:is_binary(?GV(exchange, O));
+is_exchange_def(O) when is_list(O) ->		is_binary(?GV(exchange, O));
 is_exchange_def(_) ->						false.
 
 
@@ -250,8 +250,8 @@ is_binding(_) ->					false.
 -spec is_binding_def(term()) -> boolean().
 %% ====================================================================
 is_binding_def(#'queue.bind'{}) ->		true;
-is_binding_def(O) when is_list(O) ->	erlang:is_binary(?GV(queue, O)) andalso
-										erlang:is_binary(?GV(exchange, O));
+is_binding_def(O) when is_list(O) ->	is_binary(?GV(queue, O)) andalso
+										is_binary(?GV(exchange, O));
 is_binding_def(_) ->					false.
 
 
@@ -467,7 +467,7 @@ is_deletion_def(_) ->						false.
 amqp_msg(Payload) when is_binary(Payload) ->
 	#amqp_msg{payload = Payload};
 amqp_msg(Payload) when is_list(Payload) ->
-	amqp_msg(erlang:list_to_binary(Payload));
+	amqp_msg(list_to_binary(Payload));
 amqp_msg(#amqp_msg{}=M) ->
 	M.
 

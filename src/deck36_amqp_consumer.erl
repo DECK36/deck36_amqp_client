@@ -321,8 +321,8 @@ is_valid_handle_mode_opt(_) -> false.
 %% ====================================================================
 get_cb(Definition) ->
 	case Definition of
-		{M, F} -> fun(X) -> erlang:apply(M, F, [X]) end;
-		{M, F, A} -> fun(X) -> erlang:apply(M, F, [X | A]) end;
+		{M, F} -> fun(X) -> apply(M, F, [X]) end;
+		{M, F, A} -> fun(X) -> apply(M, F, [X | A]) end;
 		F when is_function(F, 1) -> F
 	end.
 
