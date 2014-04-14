@@ -175,9 +175,9 @@ ensure_closed_test_() ->
 is_open_test_() ->
 	{setup,
 	 fun() ->
-			 {erlang:spawn(fun() -> receive _ -> ok end end),
-			  erlang:spawn(fun() -> receive _ -> ok end end),
-			  erlang:spawn(fun() -> ok end)}
+			 {proc_lib:spawn(fun() -> receive _ -> ok end end),
+			  proc_lib:spawn(fun() -> receive _ -> ok end end),
+			  proc_lib:spawn(fun() -> ok end)}
 	 end,
 	 fun({Conn, Ch, _}) ->
 			 Conn ! stop,
@@ -224,7 +224,7 @@ open_apply_close_test_() ->
 			  [
 			   {"OK", ?_assertEqual(expected, T(S, fun(_Ch) -> expected end))},
 			   {"Exception", ?_assertException(error, oh_no,
-											   T(S, fun(_Ch) -> erlang:error(oh_no) end))}
+											   T(S, fun(_Ch) -> error(oh_no) end))}
 			  ]
 	  end).
 			  
@@ -269,8 +269,8 @@ test_mocked(Fun) ->
 	 fun() ->
 			 mock_amqp_connection(),
 			 mock_amqp_channel(),
-			 {erlang:spawn(fun() -> receive _ -> ok end end),
-			  erlang:spawn(fun() -> receive _ -> ok end end)}
+			 {proc_lib:spawn(fun() -> receive _ -> ok end end),
+			  proc_lib:spawn(fun() -> receive _ -> ok end end)}
 	 end,
 	 fun({Conn, Ch}) ->
 			 Conn ! stop,
@@ -301,16 +301,16 @@ mock_amqp_channel() ->
 mock_amqp_connection() ->
 	ok = meck:new(amqp_connection, []),
 	ok = meck:expect(amqp_connection, start,
-					 fun(#amqp_params_network{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
-						(#amqp_params_direct{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+					 fun(#amqp_params_network{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
+						(#amqp_params_direct{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, open_channel,
-					 fun(Pid) when is_pid(Pid) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+					 fun(Pid) when is_pid(Pid) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, open_channel,
-					 fun(Pid, _Consumer) when is_pid(Pid) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+					 fun(Pid, _Consumer) when is_pid(Pid) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_, _) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, close,

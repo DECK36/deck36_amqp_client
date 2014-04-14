@@ -212,7 +212,7 @@ shall_ack_test_() ->
 %% ====================================================================
 cb_test_() ->
 	F = fun(ok) -> ok;
-		   (error) -> erlang:error(expected_error) end,
+		   (error) -> error(expected_error) end,
 	T = fun(E, A) -> ?_assertEqual(E, deck36_amqp_consumer:cb(F,A)) end,
 	[
 	 {"OK", T(ok, ok)},
@@ -224,7 +224,7 @@ cb_test_() ->
 %% ====================================================================
 error_cb_test_() ->
 	F = fun(ok) -> ok;
-		   (error) -> erlang:error(expected_error) end,
+		   (error) -> error(expected_error) end,
 	T = fun(E, A) -> ?_assertEqual(E, deck36_amqp_consumer:error_cb(F,A)) end,
 	{setup,
 	 fun() ->
@@ -434,13 +434,13 @@ mock_amqp_channel() ->
 mock_amqp_connection() ->
 	ok = meck:new(amqp_connection, []),
 	ok = meck:expect(amqp_connection, start,
-					 fun(#amqp_params_network{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
-						(#amqp_params_direct{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+					 fun(#amqp_params_network{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
+						(#amqp_params_direct{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, open_channel,
 					 fun(Pid) when is_pid(Pid) ->
-							 {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+							 {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, close,

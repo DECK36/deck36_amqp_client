@@ -208,7 +208,7 @@ start_stop_named_test() ->
 	mock_deck36_amqp_connection(),
 	R1 = deck36_amqp_producer:start_link([{server_ref, start_stop_named_test}|?OPTS]),
 	?assertMatch({ok, Pid} when is_pid(Pid), R1),
-	Pid = erlang:whereis(start_stop_named_test),
+	Pid = whereis(start_stop_named_test),
 	?assert(is_process_alive(Pid)),
 	?assertEqual(ok, deck36_amqp_producer:stop(start_stop_named_test)),
 	?assertEqual(ok, deck36_test_util:wait_for_stop(Pid, 20)),
@@ -222,7 +222,7 @@ start_stop_singleton_test() ->
 	mock_deck36_amqp_connection(),
 	R1 = deck36_amqp_producer:start_link([{server_ref, singleton}|?OPTS]),
 	?assertMatch({ok, Pid} when is_pid(Pid), R1),
-	Pid = erlang:whereis(ServerName),
+	Pid = whereis(ServerName),
 	?assert(is_process_alive(Pid)),
 	?assertEqual(ok, deck36_amqp_producer:stop()),
 	?assertEqual(ok, deck36_test_util:wait_for_stop(Pid, 20)),
@@ -383,13 +383,13 @@ mock_amqp_channel() ->
 mock_amqp_connection() ->
 	ok = meck:new(amqp_connection, []),
 	ok = meck:expect(amqp_connection, start,
-					 fun(#amqp_params_network{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
-						(#amqp_params_direct{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+					 fun(#amqp_params_network{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
+						(#amqp_params_direct{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, open_channel,
 					 fun(Pid) when is_pid(Pid) ->
-							 {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+							 {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, close,

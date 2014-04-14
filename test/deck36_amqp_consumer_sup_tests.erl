@@ -61,7 +61,7 @@ singleton_test() ->
 		 after 100 -> {error, timeout}
 		 end,
 	?assertMatch({error, {consumers_failed, [{error, {P1, [fail], failtest}}, {error, {P1, [fail], failtest}}]}} when is_pid(P1), R2),
-	?assertEqual(undefined, whereis(?MOD)),
+	?assertEqual(ok, deck36_test_util:wait_for_stop(?MOD, 20)),
 	% Success
 	R3 = ?MOD:start_link(singleton, [[], []]),
 	?assertMatch({ok, P} when is_pid(P), R3),
@@ -123,7 +123,7 @@ test_start_link_2_named_failures() ->
 			 after 100 -> {error, timeout}
 			 end,
 	?assertMatch({error, {consumers_failed, [{error, {P1, [fail], failtest}}, {error, {P1, [fail], failtest}}]}} when is_pid(P1), Result),
-	?assertEqual(undefined, whereis(consumer_test_3_name)).
+	?assertEqual(ok, deck36_test_util:wait_for_stop(consumer_test_3_name, 20)).
 
 
 %% Test start_consumer/2, start_consumers/2

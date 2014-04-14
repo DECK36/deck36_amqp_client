@@ -144,8 +144,8 @@ application_startup(_Config) ->
 %% Produce message, which should be handled by handle_deliver
 %% ====================================================================
 consume_base(_Config) ->
-	Expected = erlang:list_to_binary(
-				 lists:flatten(io_lib:fwrite("~p", [erlang:now()]))),
+	Expected = list_to_binary(
+				 lists:flatten(io_lib:fwrite("~p", [now()]))),
 	consume_reset_actual(),
 	deck36_amqp_client:produce(Expected),
 	timer:sleep(?WAIT_TIME),
@@ -168,8 +168,8 @@ consume_error(_Config) ->
 %% ====================================================================
 consume_suspend_resume(_Config) ->
 	[Consumer] = deck36_amqp_consumer_sup:which_consumers(),
-	Expected = erlang:list_to_binary(
-				 lists:flatten(io_lib:fwrite("~p", [erlang:now()]))),
+	Expected = list_to_binary(
+				 lists:flatten(io_lib:fwrite("~p", [now()]))),
 	
 	%% Normal consumption once more
 	consume_reset_actual(),

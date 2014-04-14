@@ -81,7 +81,7 @@ td_rule_test_() ->
 %% ====================================================================
 should_td_test_() ->
 	T = fun(X, R) -> deck36_amqp_setup:should_td(X, R) end,
-	N = fun(PN, Test) -> N2 = hd(erlang:tuple_to_list(Test)),
+	N = fun(PN, Test) -> N2 = hd(tuple_to_list(Test)),
 						 lists:flatten(io_lib:format("~p, ~s", [N2, PN])) end,
 	F = fun(X) -> lists:flatten(io_lib:format("~p", [X])) end,
 	Tests = [
@@ -370,13 +370,13 @@ mock_amqp_channel() ->
 mock_amqp_connection() ->
 	ok = meck:new(amqp_connection, []),
 	ok = meck:expect(amqp_connection, start,
-					 fun(#amqp_params_network{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
-						(#amqp_params_direct{}) -> {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+					 fun(#amqp_params_network{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
+						(#amqp_params_direct{}) -> {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, open_channel,
 					 fun(Pid) when is_pid(Pid) ->
-							 {ok, erlang:spawn(fun() -> receive _ -> ok end end)};
+							 {ok, proc_lib:spawn(fun() -> receive _ -> ok end end)};
 						(_) -> {error, einval}
 					 end),
 	ok = meck:expect(amqp_connection, close,

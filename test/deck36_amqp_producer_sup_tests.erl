@@ -61,7 +61,7 @@ singleton_test() ->
 		 after 100 -> {error, timeout}
 		 end,
 	?assertMatch({error, {producers_failed, [{error, {P1, [fail], failtest}}, {error, {P1, [fail], failtest}}]}} when is_pid(P1), R2),
-	?assertEqual(ok, deck36_test_util:wait_for_stop(whereis(?MOD), 20)),
+	?assertEqual(ok, deck36_test_util:wait_for_stop(?MOD, 20)),
 	% Success
 	R3 = ?MOD:start_link(singleton, [[], []]),
 	?assertMatch({ok, P} when is_pid(P), R3),
