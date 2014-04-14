@@ -1,6 +1,6 @@
 %% ====================================================================
 %%
-%% Copyright (c) DECK36 GmbH & Co. KG, Valentinskamp 18, 20354 Hamburg/Germany and individual contributors.
+%% Copyright (c) DECK36 GmbH & Co. KG, Burchardstraße 21, 20095 Hamburg/Germany and individual contributors.
 %% All rights reserved.
 %% 
 %% Redistribution and use in source and binary forms, with or without modification,
@@ -13,7 +13,7 @@
 %%        notice, this list of conditions and the following disclaimer in the
 %%        documentation and/or other materials provided with the distribution.
 %% 
-%%     3. Neither the name of DECK36 Gmbh & Co. KG nor the names of its contributors may be used
+%%     3. Neither the name of DECK36 GmbH & Co. KG nor the names of its contributors may be used
 %%        to endorse or promote products derived from this software without
 %%        specific prior written permission.
 %% 

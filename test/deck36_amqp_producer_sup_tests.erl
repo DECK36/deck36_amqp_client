@@ -1,6 +1,6 @@
 %% ====================================================================
 %%
-%% Copyright (c) DECK36 GmbH & Co. KG, Valentinskamp 18, 20354 Hamburg/Germany and individual contributors.
+%% Copyright (c) DECK36 GmbH & Co. KG, Burchardstraße 21, 20095 Hamburg/Germany and individual contributors.
 %% All rights reserved.
 %% 
 %% Redistribution and use in source and binary forms, with or without modification,
@@ -237,3 +237,4 @@ unmock(Mod) ->
 			error_logger:error_report({?MODULE, unmock, Reason}),
 			ok
 	end.
+
