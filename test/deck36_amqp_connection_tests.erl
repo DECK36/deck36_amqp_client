@@ -275,8 +275,8 @@ test_mocked(Fun) ->
 	 fun({Conn, Ch}) ->
 			 Conn ! stop,
 			 Ch ! stop,
-			 unmock(amqp_channel),
-			 unmock(amqp_connection)
+			 deck36_test_util:unmock(amqp_channel),
+			 deck36_test_util:unmock(amqp_connection)
 	 end,
 	 Fun}.
 
@@ -318,13 +318,3 @@ mock_amqp_connection() ->
 						(_) -> ok end),
 	ok.
 
-unmock(Mod) ->
-	try
-		meck:unload(Mod),
-		code:ensure_loaded(Mod)
-	catch
-		error:{not_mocked,Mod} -> ok;
-		error:Reason ->
-			error_logger:error_report({?MODULE, unmock, Reason}),
-			ok
-	end.

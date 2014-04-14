@@ -67,7 +67,7 @@ singleton_test() ->
 	?assertMatch({ok, P} when is_pid(P), R3),
 	{ok, Pid} = R3,
 	?assertEqual(Pid, whereis(?MOD)),
-	unmock(deck36_amqp_consumer_container).
+	deck36_test_util:unmock(deck36_amqp_consumer_container).
 
 
 %% Test start_link/1 (unnamed)
@@ -177,8 +177,8 @@ stop_consumers_test_() ->
 			  [
 			   {"Start ok", ?_assertMatch([{ok, P1}, {ok, P2}] when is_pid(P1) andalso is_pid(P2), R)},
 			   {"Stopped", fun() -> [{ok, P3}, {ok, P4}] = R,
-									?assertNot(erlang:is_process_alive(P3)),
-									?assertNot(erlang:is_process_alive(P4))
+									?assertEqual(ok, deck36_test_util:wait_for_stop(P3, 20)),
+									?assertEqual(ok, deck36_test_util:wait_for_stop(P4, 20))
 						   end}
 			  ]
 	  end,
@@ -199,7 +199,7 @@ test_mocked(TestFun, SetupFun, TearDownFun) ->
 	 end,
 	 fun(X) ->
 			 TearDownFun(X),
-			 unmock(deck36_amqp_consumer_container)
+			 deck36_test_util:unmock(deck36_amqp_consumer_container)
 	 end,
 	 TestFun}.
 	
@@ -226,14 +226,3 @@ mock_deck36_amqp_consumer_container() ->
 					 fun(Pid) -> Pid ! stop, ok end),
 	ok.
 
-
-unmock(Mod) ->
-	try
-		meck:unload(Mod),
-		code:ensure_loaded(Mod)
-	catch
-		error:{not_mocked,Mod} -> ok;
-		error:Reason ->
-			error_logger:error_report({?MODULE, unmock, Reason}),
-			ok
-	end.

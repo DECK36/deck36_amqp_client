@@ -196,10 +196,10 @@ start_stop_unnamed_test() ->
 	R1 = deck36_amqp_producer:start_link(?OPTS),
 	?assertMatch({ok, Pid} when is_pid(Pid), R1),
 	{ok, Pid} = R1,
-	?assert(erlang:is_process_alive(Pid)),
+	?assert(is_process_alive(Pid)),
 	?assertEqual(ok, deck36_amqp_producer:stop(Pid)),
-	?assertNot(erlang:is_process_alive(Pid)),
-	unmock(deck36_amqp_connection).
+	?assertEqual(ok, deck36_test_util:wait_for_stop(Pid, 20)),
+	deck36_test_util:unmock(deck36_amqp_connection).
 
 
 %% Test start_link/1, stop/2 named
@@ -209,10 +209,10 @@ start_stop_named_test() ->
 	R1 = deck36_amqp_producer:start_link([{server_ref, start_stop_named_test}|?OPTS]),
 	?assertMatch({ok, Pid} when is_pid(Pid), R1),
 	Pid = erlang:whereis(start_stop_named_test),
-	?assert(erlang:is_process_alive(Pid)),
+	?assert(is_process_alive(Pid)),
 	?assertEqual(ok, deck36_amqp_producer:stop(start_stop_named_test)),
-	?assertNot(erlang:is_process_alive(Pid)),
-	unmock(deck36_amqp_connection).
+	?assertEqual(ok, deck36_test_util:wait_for_stop(Pid, 20)),
+	deck36_test_util:unmock(deck36_amqp_connection).
 
 
 %% Test start_link/1, stop/1 singleton
@@ -223,10 +223,10 @@ start_stop_singleton_test() ->
 	R1 = deck36_amqp_producer:start_link([{server_ref, singleton}|?OPTS]),
 	?assertMatch({ok, Pid} when is_pid(Pid), R1),
 	Pid = erlang:whereis(ServerName),
-	?assert(erlang:is_process_alive(Pid)),
+	?assert(is_process_alive(Pid)),
 	?assertEqual(ok, deck36_amqp_producer:stop()),
-	?assertNot(erlang:is_process_alive(Pid)),
-	unmock(deck36_amqp_connection).
+	?assertEqual(ok, deck36_test_util:wait_for_stop(Pid, 20)),
+	deck36_test_util:unmock(deck36_amqp_connection).
 
 
 %% Test send/1
@@ -240,8 +240,8 @@ send_1_test_() ->
 	 end,
 	 fun(_) ->
 			 deck36_amqp_producer:stop(),
-			 unmock(deck36_amqp_connection),
-			 unmock(amqp_channel)
+			 deck36_test_util:unmock(deck36_amqp_connection),
+			 deck36_test_util:unmock(amqp_channel)
 	 end,
 	 fun(_) ->
 			 [
@@ -263,8 +263,8 @@ send_2_test() ->
 	 end,
 	 fun(Pid) ->
 			 deck36_amqp_producer:stop(Pid),
-			 unmock(deck36_amqp_connection),
-			 unmock(amqp_channel)
+			 deck36_test_util:unmock(deck36_amqp_connection),
+			 deck36_test_util:unmock(amqp_channel)
 	 end,
 	 fun(Pid) ->
 			 [
@@ -285,8 +285,8 @@ send_sync_1_test_() ->
 	 end,
 	 fun(_) ->
 			 deck36_amqp_producer:stop(),
-			 unmock(deck36_amqp_connection),
-			 unmock(amqp_channel)
+			 deck36_test_util:unmock(deck36_amqp_connection),
+			 deck36_test_util:unmock(amqp_channel)
 	 end,
 	 fun(_) ->
 			 [
@@ -310,8 +310,8 @@ send_sync_2_test() ->
 	 end,
 	 fun(Pid) ->
 			 deck36_amqp_producer:stop(Pid),
-			 unmock(deck36_amqp_connection),
-			 unmock(amqp_channel)
+			 deck36_test_util:unmock(deck36_amqp_connection),
+			 deck36_test_util:unmock(amqp_channel)
 	 end,
 	 fun(Pid) ->
 			 [
@@ -346,9 +346,9 @@ test_mocked(Fun) ->
 			 mock_deck36_amqp_connection()
 	 end,
 	 fun(_) ->
-			 unmock(deck36_amqp_connection),
-			 unmock(amqp_channel),
-			 unmock(amqp_connection)
+			 deck36_test_util:unmock(deck36_amqp_connection),
+			 deck36_test_util:unmock(amqp_channel),
+			 deck36_test_util:unmock(amqp_connection)
 	 end,
 	 Fun}.
 
@@ -416,14 +416,3 @@ mock_deck36_amqp_connection() ->
 					 end),
 	ok.
 
-
-unmock(Mod) ->
-	try
-		meck:unload(Mod),
-		code:ensure_loaded(Mod)
-	catch
-		error:{not_mocked,Mod} -> ok;
-		error:Reason ->
-			error_logger:error_report({?MODULE, unmock, Reason}),
-			ok
-	end.

@@ -231,7 +231,7 @@ error_cb_test_() ->
 			 mock_error_logger()
 	 end,
 	 fun(_) ->
-			 unmock(error_logger)
+			 deck36_test_util:unmock(error_logger)
 	 end,
 	 fun(_) ->
 			 [
@@ -404,8 +404,8 @@ test_mocked(Fun) ->
 			 mock_amqp_connection()
 	 end,
 	 fun(_) ->
-			 unmock(amqp_channel),
-			 unmock(amqp_connection)
+			 deck36_test_util:unmock(amqp_channel),
+			 deck36_test_util:unmock(amqp_connection)
 	 end,
 	 Fun}.
 
@@ -453,14 +453,3 @@ mock_error_logger() ->
 	ok = meck:expect(error_logger, error_report, fun(R) -> R end),
 	ok.
 
-
-unmock(Mod) ->
-	try
-		meck:unload(Mod),
-		code:ensure_loaded(Mod)
-	catch
-		error:{not_mocked,Mod} -> ok;
-		error:Reason ->
-			error_logger:error_report({?MODULE, unmock, Reason}),
-			ok
-	end.

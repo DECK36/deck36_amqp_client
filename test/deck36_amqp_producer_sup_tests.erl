@@ -61,13 +61,13 @@ singleton_test() ->
 		 after 100 -> {error, timeout}
 		 end,
 	?assertMatch({error, {producers_failed, [{error, {P1, [fail], failtest}}, {error, {P1, [fail], failtest}}]}} when is_pid(P1), R2),
-	?assertEqual(undefined, whereis(?MOD)),
+	?assertEqual(ok, deck36_test_util:wait_for_stop(whereis(?MOD), 20)),
 	% Success
 	R3 = ?MOD:start_link(singleton, [[], []]),
 	?assertMatch({ok, P} when is_pid(P), R3),
 	{ok, Pid} = R3,
 	?assertEqual(Pid, whereis(?MOD)),
-	unmock(deck36_amqp_producer).
+	deck36_test_util:unmock(deck36_amqp_producer).
 
 
 %% Test start_link/1 (unnamed)
@@ -177,8 +177,8 @@ stop_producers_test_() ->
 			  [
 			   {"Start ok", ?_assertMatch([{ok, P1}, {ok, P2}] when is_pid(P1) andalso is_pid(P2), R)},
 			   {"Stopped", fun() -> [{ok, P3}, {ok, P4}] = R,
-									?assertNot(erlang:is_process_alive(P3)),
-									?assertNot(erlang:is_process_alive(P4))
+									?assertEqual(ok, deck36_test_util:wait_for_stop(P3, 20)),
+									?assertEqual(ok, deck36_test_util:wait_for_stop(P4, 20))
 						   end}
 			  ]
 	  end,
@@ -199,7 +199,7 @@ test_mocked(TestFun, SetupFun, TearDownFun) ->
 	 end,
 	 fun(X) ->
 			 TearDownFun(X),
-			 unmock(deck36_amqp_producer)
+			 deck36_test_util:unmock(deck36_amqp_producer)
 	 end,
 	 TestFun}.
 	
@@ -225,16 +225,4 @@ mock_deck36_amqp_producer() ->
 	ok = meck:expect(deck36_amqp_producer, stop,
 					 fun(Pid) -> Pid ! stop, ok end),
 	ok.
-
-
-unmock(Mod) ->
-	try
-		meck:unload(Mod),
-		code:ensure_loaded(Mod)
-	catch
-		error:{not_mocked,Mod} -> ok;
-		error:Reason ->
-			error_logger:error_report({?MODULE, unmock, Reason}),
-			ok
-	end.
 

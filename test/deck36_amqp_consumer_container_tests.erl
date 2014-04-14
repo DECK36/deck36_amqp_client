@@ -67,7 +67,7 @@ shutdown_test_() ->
 			 mock_deck36_amqp_connection()
 	 end,
 	 fun(_) ->
-			 unmock(deck36_amqp_connection)
+			 deck36_test_util:unmock(deck36_amqp_connection)
 	 end,
 	 fun(_) ->
 			 ?_assertMatch({ok, #state{conn = mock_conn_closed}},
@@ -127,7 +127,7 @@ terminate_test_() ->
 			 mock_deck36_amqp_connection()
 	 end,
 	 fun(_) ->
-			 unmock(deck36_amqp_connection)
+			 deck36_test_util:unmock(deck36_amqp_connection)
 	 end,
 	 fun(_) ->
 			 ?_assertMatch(ok,
@@ -176,12 +176,12 @@ start_stop_test() ->
 	R1 = deck36_amqp_consumer_container:start_link(?OPTS),
 	?assertMatch({ok, Pid} when is_pid(Pid), R1),
 	{ok, Ref} = R1,
-	?assert(erlang:is_process_alive(Ref)),
+	?assert(is_process_alive(Ref)),
 	?assertEqual(ok, deck36_amqp_consumer_container:stop(Ref)),
-	?assertNot(erlang:is_process_alive(Ref)),
-	unmock(deck36_amqp_connection),
-	unmock(amqp_connection),
-	unmock(amqp_channel),
+	?assertEqual(ok, deck36_test_util:wait_for_stop(Ref, 20)),
+	deck36_test_util:unmock(deck36_amqp_connection),
+	deck36_test_util:unmock(amqp_connection),
+	deck36_test_util:unmock(amqp_channel),
 	ok.
 
 
@@ -198,9 +198,9 @@ suspend_resume_test() ->
 	?assertNot(Mod:is_consuming(Ref)),
 	?assertEqual(ok, Mod:resume(Ref)),
 	?assert(Mod:is_consuming(Ref)),
-	unmock(deck36_amqp_connection),
-	unmock(amqp_connection),
-	unmock(amqp_channel),
+	deck36_test_util:unmock(deck36_amqp_connection),
+	deck36_test_util:unmock(amqp_connection),
+	deck36_test_util:unmock(amqp_channel),
 	ok.
 	
 
@@ -216,9 +216,9 @@ test_mocked(Fun) ->
 			 mock_deck36_amqp_connection()
 	 end,
 	 fun(_) ->
-			 unmock(deck36_amqp_connection),
-			 unmock(amqp_channel),
-			 unmock(amqp_connection)
+			 deck36_test_util:unmock(deck36_amqp_connection),
+			 deck36_test_util:unmock(amqp_channel),
+			 deck36_test_util:unmock(amqp_connection)
 	 end,
 	 Fun}.
 
@@ -281,14 +281,3 @@ mock_deck36_amqp_connection() ->
 					 end),
 	ok.
 
-
-unmock(Mod) ->
-	try
-		meck:unload(Mod),
-		code:ensure_loaded(Mod)
-	catch
-		error:{not_mocked,Mod} -> ok;
-		error:Reason ->
-			error_logger:error_report({?MODULE, unmock, Reason}),
-			ok
-	end.
