@@ -1,6 +1,6 @@
 {application, deck36_amqp_client,
  [{description, "DECK36 AMQP client"},
-  {vsn, "0.3.2"},
+  {vsn, "0.3.4"},
   {registered, [deck36_amqp_client_sup,
   				deck36_amqp_consumer_sup,
   				deck36_amqp_producer_sup,
