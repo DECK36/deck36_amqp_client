@@ -405,7 +405,7 @@ error_cb(Cb, Arg) ->
 
 %% ack_if/3
 %% ====================================================================
-%% @doc Naybe acknowledge message
+%% @doc Maybe acknowledge message
 -spec ack_if(Ack :: boolean(), Ch :: pid(), Tag :: term(), RequeueOnError :: boolean()) -> ok.
 %% ====================================================================
 ack_if(true, Ch, Tag, _) ->		amqp_channel:cast(Ch, #'basic.ack'{delivery_tag=Tag});
